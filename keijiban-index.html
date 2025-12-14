@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>連絡掲示板</title>
+    <style>
+        /* --- デザイン設定 --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Yu Gothic", sans-serif;
+            background-color: #fafafa;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 16px;
+            background-color: #fff;
+            min-height: 100vh;
+        }
+        h2 {
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #555;
+        }
+
+        /* 入力フォーム */
+        .input-group {
+            background-color: #f0f4f8;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #444;
+        }
+        .required::after { content: " (必須)"; color: #e53935; font-size: 0.8rem; }
+        
+        select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            background: #fff;
+            appearance: none;
+        }
+        textarea { height: 80px; resize: none; }
+        
+        button.main-btn {
+            width: 100%;
+            padding: 14px;
+            background-color: #007bff;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        button.main-btn:active { opacity: 0.7; }
+
+        .note {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+
+        /* 投稿一覧 */
+        .post-list { margin-top: 10px; }
+        .post-item {
+            border-bottom: 1px solid #eee;
+            padding: 16px 0;
+            animation: fadeIn 0.5s ease;
+        }
+        .post-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        .author-badge {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .post-date { color: #999; }
+        .post-content {
+            font-size: 1rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* 編集・削除ボタンエリア */
+        .owner-actions {
+            margin-top: 10px;
+            text-align: right;
+        }
+        .action-btn {
+            background: none;
+            border: 1px solid #ddd;
+            padding: 4px 10px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .edit-btn { color: #28a745; border-color: #28a745; }
+        .delete-btn { color: #dc3545; border-color: #dc3545; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>連絡掲示板</h2>
+
+    <div class="input-group">
+        <label for="author" class="required">投稿者</label>
+        <select id="author">
+            <option value="" disabled selected>選択してください</option>
+            <option value="逢坂">逢坂</option>
+            <option value="山本">山本</option>
+            <option value="山田">山田</option>
+            <option value="金丸">金丸</option>
+            <option value="山城">山城</option>
+        </select>
+
+        <label for="message">メッセージ</label>
+        <textarea id="message" placeholder="ここに内容を入力..."></textarea>
+
+        <button id="submitBtn" class="main-btn">投稿する</button>
+        <div class="note">※編集・削除用に、ブラウザに識別情報を保存します（個人情報は含みません）。</div>
+    </div>
+
+    <div id="timeline" class="post-list">
+        <div style="text-align:center; color:#999; font-size:0.9rem;">読み込み中...</div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, Timestamp, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // =================================================================
+    // 【重要】ここにFirebaseの接続設定を貼り付けてください
+    // =================================================================
+    const firebaseConfig = {
+        apiKey: "AIzaSyCakAZ89wpEAuLHpsEE0nvhcDo8VSWma3Q",
+        authDomain: "keijiban-1.firebaseapp.com",
+        projectId: "keijiban-1",
+        storageBucket: "keijiban-1.firebasestorage.app",
+        messagingSenderId: "419769266348",
+        appId: "1:419769266348:web:b19f3b547c7e6f7d0c2f09"
+    };
+    // =================================================================
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const postsRef = collection(db, "posts");
+
+    // --- ユーザーIDの管理（ブラウザ保存） ---
+    const STORAGE_KEY = "bbs_user_id";
+    let myUserId = localStorage.getItem(STORAGE_KEY);
+
+    // IDがなければ生成して保存
+    if (!myUserId) {
+        myUserId = "user_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
+        localStorage.setItem(STORAGE_KEY, myUserId);
+    }
+
+    const authorSelect = document.getElementById("author");
+    const messageInput = document.getElementById("message");
+    const submitBtn = document.getElementById("submitBtn");
+    const timeline = document.getElementById("timeline");
+
+    // ■ 投稿機能
+    submitBtn.addEventListener("click", async () => {
+        const author = authorSelect.value;
+        const text = messageInput.value.trim();
+
+        if (!author) return alert("投稿者を選択してください");
+        if (!text) return alert("メッセージを入力してください");
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "送信中...";
+
+        try {
+            await addDoc(postsRef, {
+                author: author,
+                text: text,
+                createdAt: Timestamp.now(),
+                uid: myUserId // ★ここで投稿者のIDも一緒に保存
+            });
+            messageInput.value = "";
+        } catch (error) {
+            console.error("Error:", error);
+            alert("投稿に失敗しました");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "投稿する";
+        }
+    });
+
+    // ■ 読み込み機能
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const q = query(
+        postsRef,
+        where("createdAt", ">", Timestamp.fromDate(oneWeekAgo)),
+        orderBy("createdAt", "desc")
+    );
+
+    onSnapshot(q, (snapshot) => {
+        timeline.innerHTML = "";
+
+        if (snapshot.empty) {
+            timeline.innerHTML = '<div style="text-align:center; color:#ccc; padding:20px;">投稿はまだありません</div>';
+            return;
+        }
+
+        snapshot.forEach((documentSnapshot) => {
+            const data = documentSnapshot.data();
+            const date = data.createdAt.toDate();
+            const timeStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+            const postId = documentSnapshot.id; // ドキュメントID（削除・編集に必要）
+
+            // 自分の投稿かどうか判定
+            const isMyPost = (data.uid === myUserId);
+            
+            // 編集・削除ボタンのHTML（自分の投稿の場合のみ表示）
+            let actionButtons = "";
+            if (isMyPost) {
+                actionButtons = `
+                    <div class="owner-actions">
+                        <button class="action-btn edit-btn" onclick="editPost('${postId}', '${escapeHtml(data.text).replace(/\n/g, '\\n')}')">編集</button>
+                        <button class="action-btn delete-btn" onclick="deletePost('${postId}')">削除</button>
+                    </div>
+                `;
+            }
+
+            const postHtml = `
+                <div class="post-item">
+                    <div class="post-meta">
+                        <span class="author-badge">${escapeHtml(data.author)}</span>
+                        <span class="post-date">${timeStr}</span>
+                    </div>
+                    <div class="post-content">${escapeHtml(data.text)}</div>
+                    ${actionButtons}
+                </div>
+            `;
+            timeline.insertAdjacentHTML('beforeend', postHtml);
+        });
+    });
+
+    // ■ 削除機能（グローバル関数として登録）
+    window.deletePost = async (id) => {
+        if(confirm("この投稿を削除しますか？")) {
+            try {
+                await deleteDoc(doc(db, "posts", id));
+            } catch(e) {
+                alert("削除できませんでした");
+            }
+        }
+    };
+
+    // ■ 編集機能（グローバル関数として登録）
+    window.editPost = async (id, currentText) => {
+        // 現在のテキストを改行コード等戻して表示
+        const newText = prompt("内容を編集:", currentText);
+        if (newText !== null && newText.trim() !== "") {
+            try {
+                await updateDoc(doc(db, "posts", id), {
+                    text: newText.trim()
+                });
+            } catch(e) {
+                alert("編集できませんでした");
+            }
+        }
+    };
+
+    function escapeHtml(str) {
+        if(!str) return "";
+        return str.replace(/[&<>'"]/g, tag => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        }[tag]));
+    }
+</script>
+</body>
+</html>
+
