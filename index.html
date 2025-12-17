@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>連絡掲示板</title>
     <style>
-        /* --- おしゃれデザイン設定 --- */
+        /* --- ベースデザイン --- */
         body {
             font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
-            background-color: #f0f4f8; /* 背景を少し青みがかったグレーに */
+            background-color: #f0f4f8;
             margin: 0;
             padding: 0;
             color: #333;
@@ -20,27 +20,27 @@
             padding: 20px;
             min-height: 100vh;
         }
-
-        /* タイトル装飾 */
         h1.page-title {
-            font-size: 1.8rem; /* 文字を大きく */
+            font-size: 1.8rem;
             text-align: center;
             margin: 20px 0 30px;
             color: #2c3e50;
-            font-weight: 800; /* 太く */
+            font-weight: 800;
             letter-spacing: 0.05em;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
 
-        /* 入力フォーム（カードデザイン） */
-        .input-card {
+        /* カード共通スタイル */
+        .card-style {
             background-color: #fff;
             padding: 24px;
-            border-radius: 16px; /* 角を丸く */
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05); /* ふんわりした影 */
-            margin-bottom: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
 
+        /* 入力フォーム */
+        .input-card {
+            margin-bottom: 30px;
+        }
         label {
             display: block;
             margin-bottom: 8px;
@@ -50,7 +50,6 @@
         }
         .required::after { content: " *"; color: #e53935; }
         
-        /* 入力パーツの装飾 */
         select, textarea {
             width: 100%;
             padding: 14px;
@@ -71,24 +70,22 @@
         }
         textarea { height: 100px; resize: none; }
         
-        /* 送信ボタン */
+        /* 共通ボタンデザイン（丸みのある形状） */
         button.main-btn {
             width: 100%;
             padding: 16px;
-            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%); /* グラデーション */
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
             color: white;
             font-size: 1.1rem;
             font-weight: bold;
             border: none;
-            border-radius: 50px; /* 丸みのあるボタン */
+            border-radius: 50px; /* ここで丸みを統一 */
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);
             transition: transform 0.1s, box-shadow 0.2s;
         }
-        button.main-btn:active {
-            transform: scale(0.98);
-            box-shadow: 0 2px 5px rgba(74, 144, 226, 0.2);
-        }
+        button.main-btn:active { transform: scale(0.98); opacity: 0.9; }
+        button.main-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
 
         .note {
             font-size: 0.8rem;
@@ -97,20 +94,14 @@
             text-align: center;
         }
 
-        /* 投稿一覧エリア */
+        /* 投稿一覧 */
         .post-list { margin-top: 10px; }
-        
-        /* 投稿カードのデザイン */
         .post-card {
-            background: #fff;
-            border-radius: 12px;
-            padding: 20px;
             margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            border-left: 5px solid #4a90e2; /* 左側にアクセントカラー */
+            padding: 20px;
+            border-left: 5px solid #4a90e2;
             animation: slideIn 0.4s ease;
         }
-
         .post-header {
             display: flex;
             justify-content: space-between;
@@ -119,18 +110,8 @@
             padding-bottom: 8px;
             border-bottom: 1px solid #f0f0f0;
         }
-
-        .author-badge {
-            font-weight: bold;
-            color: #333;
-            font-size: 1rem;
-        }
-        
-        .post-date {
-            font-size: 0.8rem;
-            color: #aaa;
-        }
-
+        .author-badge { font-weight: bold; color: #333; font-size: 1rem; }
+        .post-date { font-size: 0.8rem; color: #aaa; }
         .post-content {
             font-size: 1rem;
             line-height: 1.7;
@@ -138,8 +119,6 @@
             word-break: break-all;
             color: #444;
         }
-
-        /* 編集・削除ボタンエリア */
         .owner-actions {
             margin-top: 15px;
             text-align: right;
@@ -157,14 +136,65 @@
             transition: all 0.2s;
         }
         .edit-btn { color: #28a745; border-color: #28a745; }
-        .edit-btn:hover { background-color: #e9f7ef; }
-        
         .delete-btn { color: #e53935; border-color: #e53935; }
-        .delete-btn:hover { background-color: #fce8e7; }
 
         @keyframes slideIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- 編集用モーダルウィンドウ --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-content {
+            width: 100%;
+            max-width: 500px;
+            /* padding等は card-style で適用 */
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            text-align: center;
+        }
+        .modal-content textarea {
+            height: 150px; /* 編集画面の高さ */
+        }
+        
+        /* モーダル内のボタンエリア修正 */
+        .modal-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px; /* ボタン同士の間隔 */
+            margin-top: 10px;
+        }
+        .modal-actions button {
+            flex: 1; /* ボタンを均等な幅に広げる */
+            padding: 14px;
+            border-radius: 50px; /* ★ここで「投稿する」ボタンと同じ丸みに統一 */
+            margin: 0;
+            font-size: 1rem;
+        }
+        
+        /* キャンセルボタンの配色調整 */
+        .cancel-btn {
+            background: #e1e8ed !important; /* グレー背景 */
+            color: #555 !important;
+            box-shadow: none !important; /* キャンセルボタンは影なしでフラットに */
         }
     </style>
 </head>
@@ -173,7 +203,7 @@
 <div class="container">
     <h1 class="page-title">連絡掲示板</h1>
 
-    <div class="input-card">
+    <div class="input-card card-style">
         <label for="author" class="required">投稿者</label>
         <select id="author">
             <option value="" disabled selected>選択してください</option>
@@ -196,13 +226,23 @@
     </div>
 </div>
 
+<div id="editModal" class="modal-overlay">
+    <div class="modal-content card-style">
+        <h3>内容を編集</h3>
+        <textarea id="editInput"></textarea>
+        <div class="modal-actions">
+            <button id="cancelEditBtn" class="main-btn cancel-btn">キャンセル</button>
+            <button id="saveEditBtn" class="main-btn">保存する</button>
+        </div>
+    </div>
+</div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, Timestamp, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // =================================================================
     // 【重要】ここに APIキー を貼り付けてください
-    // （先ほどのファイルから apiKey: "..." の部分などをコピーしてください）
     // =================================================================
     const firebaseConfig = {
         apiKey: "AIzaSyCakQvs7YjgTGsczVC3L9M3vtpIIS_XYDk",
@@ -214,7 +254,6 @@
     };
     // =================================================================
 
-    // --- 以下はロジック（変更なし） ---
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const postsRef = collection(db, "posts");
@@ -231,74 +270,52 @@
     const submitBtn = document.getElementById("submitBtn");
     const timeline = document.getElementById("timeline");
 
-    // 投稿
+    const editModal = document.getElementById("editModal");
+    const editInput = document.getElementById("editInput");
+    const cancelEditBtn = document.getElementById("cancelEditBtn");
+    const saveEditBtn = document.getElementById("saveEditBtn");
+    let currentEditPostId = null;
+
     submitBtn.addEventListener("click", async () => {
         const author = authorSelect.value;
         const text = messageInput.value.trim();
-
         if (!author) return alert("投稿者を選択してください");
         if (!text) return alert("メッセージを入力してください");
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = "送信中...";
-
+        submitBtn.disabled = true; submitBtn.textContent = "送信中...";
         try {
-            await addDoc(postsRef, {
-                author: author,
-                text: text,
-                createdAt: Timestamp.now(),
-                uid: myUserId
-            });
+            await addDoc(postsRef, { author, text, createdAt: Timestamp.now(), uid: myUserId });
             messageInput.value = "";
         } catch (error) {
-            console.error("Error:", error);
-            alert("投稿に失敗しました。\nAPIキーが正しいか確認してください。");
+            console.error("Error:", error); alert("投稿に失敗しました。\nAPIキーを確認してください。");
         } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = "投稿する";
+            submitBtn.disabled = false; submitBtn.textContent = "投稿する";
         }
     });
 
-    // 読み込み（1週間以内）
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    const q = query(
-        postsRef, 
-        where("createdAt", ">", Timestamp.fromDate(oneWeekAgo)),
-        orderBy("createdAt", "desc")
-    );
+    const q = query(postsRef, where("createdAt", ">", Timestamp.fromDate(oneWeekAgo)), orderBy("createdAt", "desc"));
 
     onSnapshot(q, (snapshot) => {
         timeline.innerHTML = "";
-        if (snapshot.empty) {
-            timeline.innerHTML = '<div style="text-align:center; color:#ccc; padding:40px;">投稿はまだありません</div>';
-            return;
-        }
-
-        snapshot.forEach((documentSnapshot) => {
-            const data = documentSnapshot.data();
+        if (snapshot.empty) { timeline.innerHTML = '<div style="text-align:center; color:#ccc; padding:40px;">投稿はまだありません</div>'; return; }
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
             const date = data.createdAt.toDate();
-            const timeStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-            const postId = documentSnapshot.id;
+            const timeStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
             const isMyPost = (data.uid === myUserId);
-            
             let actionButtons = "";
             if (isMyPost) {
                 actionButtons = `
                     <div class="owner-actions">
-                        <button class="action-btn edit-btn" onclick="editPost('${postId}', '${escapeHtml(data.text).replace(/\n/g, '\\n')}')">編集</button>
-                        <button class="action-btn delete-btn" onclick="deletePost('${postId}')">削除</button>
+                        <button class="action-btn edit-btn" onclick="openEditModal('${docSnap.id}', '${escapeHtml(data.text).replace(/\n/g, '\\n').replace(/'/g, "\\'")}')">編集</button>
+                        <button class="action-btn delete-btn" onclick="deletePost('${docSnap.id}')">削除</button>
                     </div>
                 `;
             }
-
             const postHtml = `
-                <div class="post-card">
-                    <div class="post-header">
-                        <span class="author-badge">${escapeHtml(data.author)}</span>
-                        <span class="post-date">${timeStr}</span>
-                    </div>
+                <div class="post-card card-style">
+                    <div class="post-header"><span class="author-badge">${escapeHtml(data.author)}</span><span class="post-date">${timeStr}</span></div>
                     <div class="post-content">${escapeHtml(data.text)}</div>
                     ${actionButtons}
                 </div>
@@ -313,12 +330,38 @@
         }
     };
 
-    window.editPost = async (id, currentText) => {
-        const newText = prompt("内容を編集:", currentText);
-        if (newText !== null && newText.trim() !== "") {
-            try { await updateDoc(doc(db, "posts", id), { text: newText.trim() }); } catch(e) { alert("編集できませんでした"); }
-        }
+    window.openEditModal = (id, currentText) => {
+        currentEditPostId = id;
+        editInput.value = currentText;
+        editModal.classList.add('active');
     };
+
+    const closeModal = () => {
+        editModal.classList.remove('active');
+        currentEditPostId = null;
+    };
+
+    cancelEditBtn.addEventListener("click", closeModal);
+
+    editModal.addEventListener("click", (e) => {
+        if (e.target === editModal) closeModal();
+    });
+
+    saveEditBtn.addEventListener("click", async () => {
+        const newText = editInput.value.trim();
+        if (!newText) return alert("内容を入力してください");
+        if (!currentEditPostId) return;
+
+        saveEditBtn.disabled = true; saveEditBtn.textContent = "保存中...";
+        try {
+            await updateDoc(doc(db, "posts", currentEditPostId), { text: newText });
+            closeModal();
+        } catch(e) {
+            console.error("Error:", e); alert("編集できませんでした");
+        } finally {
+            saveEditBtn.disabled = false; saveEditBtn.textContent = "保存する";
+        }
+    });
 
     function escapeHtml(str) {
         if(!str) return "";
