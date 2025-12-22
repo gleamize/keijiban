@@ -266,7 +266,7 @@
         apiKey: "AIzaSyCakQvs7YjgTGsczVC3L9M3vtpIIS_XYDk",
         authDomain: "keijiban-1.firebaseapp.com",
         projectId: "keijiban-1",
-        storageBucket: "keijiban-1.firebasestorage.app", // ★重要: Storageを使うために必要です (通常は projectId.appspot.com)
+        storageBucket: "keijiban-1.firebasestorage.app", // ★重要: Storageを使うために必要です
         messagingSenderId: "419769266348",
         appId: "1:419769266348:web:b19f3b547c7e6f7d0c2f09"
     };
@@ -452,10 +452,8 @@
         
         try {
             // ドキュメントを取得して画像情報を探す
-            // ※本来はgetDocが必要ですが、簡易化のためonSnapshotのデータを利用するか、
-            // ここではFirestoreから削除し、古い画像はクリーンアップ機能に任せる方式も手ですが
             // 丁寧に行うなら以下のようにします
-            alert("削除中...");
+            // alert("削除中...");  <--- 削除しました
             await deleteDoc(doc(db, "posts", id));
             alert("削除しました");
             // ※画像の即時削除は複雑になるため、下記の自動クリーンアップに任せます
@@ -489,7 +487,7 @@
     // ページ読み込み時に一度だけ実行
     cleanupOldPosts();
 
-    // --- 編集モーダル関連 (前回のまま) ---
+    // --- 編集モーダル関連 ---
     const editModal = document.getElementById("editModal");
     const editInput = document.getElementById("editInput");
     const cancelEditBtn = document.getElementById("cancelEditBtn");
