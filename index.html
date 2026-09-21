@@ -149,6 +149,24 @@
             border-left: 5px solid #4a90e2;
             animation: slideIn 0.4s ease;
         }
+        
+        /* 固定投稿用のデザイン追加 */
+        .pinned-post {
+            border: 2px solid #f39c12;
+            border-left: 5px solid #f39c12;
+            background-color: #fffdf5;
+        }
+        .pinned-label {
+            display: inline-block;
+            background-color: #f39c12;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
         .post-header {
             display: flex;
             justify-content: space-between;
@@ -184,6 +202,7 @@
         }
         .edit-btn { color: #28a745; border-color: #28a745; }
         .delete-btn { color: #e53935; border-color: #e53935; }
+        .pin-btn { color: #f39c12; border-color: #f39c12; } /* 固定ボタン */
 
         @keyframes slideIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -231,7 +250,7 @@
 
         <div class="image-upload-area">
             <input type="file" id="imageInput" accept="image/*" multiple style="display: none;">
-            <label for="imageInput" class="file-select-btn">📷 画像を追加 (最大3枚)</label>
+            <label for="imageInput" class="file-select-btn">📷️ 画像を追加 (最大3枚)</label>
             <div id="previewContainer"></div>
         </div>
 
@@ -267,7 +286,7 @@
         apiKey: "AIzaSyCakQvs7YjgTGsczVC3L9M3vtpIIS_XYDk",
         authDomain: "keijiban-1.firebaseapp.com",
         projectId: "keijiban-1",
-        storageBucket: "keijiban-1.firebasestorage.app", // ★重要: Storageを使うために必要です
+        storageBucket: "keijiban-1.firebasestorage.app", 
         messagingSenderId: "419769266348",
         appId: "1:419769266348:web:b19f3b547c7e6f7d0c2f09"
     };
@@ -275,7 +294,7 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const storage = getStorage(app); // Storage機能の初期化
+    const storage = getStorage(app); 
     const postsRef = collection(db, "posts");
 
     const STORAGE_KEY = "bbs_user_id";
@@ -292,7 +311,6 @@
     const submitBtn = document.getElementById("submitBtn");
     const timeline = document.getElementById("timeline");
 
-    // 画像選択時のプレビュー処理
     imageInput.addEventListener("change", () => {
         const files = Array.from(imageInput.files);
         previewContainer.innerHTML = "";
@@ -315,7 +333,6 @@
         });
     });
 
-    // 画像圧縮関数（横幅800px以下、JPEG品質0.7に圧縮）
     const compressImage = async (file) => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -341,13 +358,12 @@
 
                     canvas.toBlob((blob) => {
                         resolve(blob);
-                    }, "image/jpeg", 0.7); // 圧縮率設定
+                    }, "image/jpeg", 0.7); 
                 };
             };
         });
     };
 
-    // 投稿機能
     submitBtn.addEventListener("click", async () => {
         const author = authorSelect.value;
         const text = messageInput.value.trim();
@@ -361,32 +377,25 @@
 
         try {
             const imageUrls = [];
-
-            // 画像のアップロード処理
             for (const file of files) {
-                // 圧縮実行
                 const compressedBlob = await compressImage(file);
-                
-                // ファイル名生成 (タイムスタンプ_ランダム)
                 const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
                 const storageRef = ref(storage, 'images/' + fileName);
                 
-                // アップロード
                 await uploadBytes(storageRef, compressedBlob);
                 const url = await getDownloadURL(storageRef);
                 imageUrls.push({ url: url, path: 'images/' + fileName });
             }
 
-            // Firestoreに保存
             await addDoc(postsRef, {
                 author: author,
                 text: text,
-                images: imageUrls, // 画像URL配列
+                images: imageUrls, 
                 createdAt: Timestamp.now(),
-                uid: myUserId
+                uid: myUserId,
+                isPinned: false // ★ 新規投稿時の固定フラグ初期値
             });
 
-            // リセット
             messageInput.value = "";
             imageInput.value = "";
             previewContainer.innerHTML = "";
@@ -399,7 +408,6 @@
         }
     });
 
-    // 読み込み機能 (1週間以内)
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const q = query(postsRef, where("createdAt", ">", Timestamp.fromDate(oneWeekAgo)), orderBy("createdAt", "desc"));
@@ -408,18 +416,20 @@
         timeline.innerHTML = "";
         if (snapshot.empty) { timeline.innerHTML = '<div style="text-align:center; color:#ccc; padding:40px;">投稿はまだありません</div>'; return; }
         
+        let pinnedHtml = ""; // 固定用
+        let normalHtml = ""; // 通常用
+
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const date = data.createdAt.toDate();
             const timeStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
             const isMyPost = (data.uid === myUserId);
+            const isPinned = data.isPinned === true;
             
-            // 画像表示用のHTML生成
             let imagesHtml = "";
             if (data.images && data.images.length > 0) {
                 imagesHtml = `<div class="post-images">`;
                 data.images.forEach(imgData => {
-                    // 古い形式(URL文字列のみ)と新しい形式(オブジェクト)の両対応
                     const src = typeof imgData === 'string' ? imgData : imgData.url;
                     imagesHtml += `<a href="${src}" target="_blank"><img src="${src}" class="post-image-item"></a>`;
                 });
@@ -428,50 +438,81 @@
 
             let actionButtons = "";
             if (isMyPost) {
+                const pinBtnText = isPinned ? "固定解除" : "固定";
                 actionButtons = `
                     <div class="owner-actions">
+                        <button class="action-btn pin-btn" onclick="togglePin('${docSnap.id}', ${isPinned})">${pinBtnText}</button>
                         <button class="action-btn edit-btn" onclick="openEditModal('${docSnap.id}', '${escapeHtml(data.text).replace(/\n/g, '\\n').replace(/'/g, "\\'")}')">編集</button>
                         <button class="action-btn delete-btn" onclick="deletePost('${docSnap.id}')">削除</button>
                     </div>
                 `;
             }
             
+            const cardClass = isPinned ? "post-card card-style pinned-post" : "post-card card-style";
+            const pinnedLabel = isPinned ? `<div class="pinned-label">📌 固定された投稿</div>` : "";
+
             const postHtml = `
-                <div class="post-card card-style">
+                <div class="${cardClass}">
+                    ${pinnedLabel}
                     <div class="post-header"><span class="author-badge">${escapeHtml(data.author)}</span><span class="post-date">${timeStr}</span></div>
                     <div class="post-content">${escapeHtml(data.text)}${imagesHtml}</div>
                     ${actionButtons}
                 </div>
             `;
-            timeline.insertAdjacentHTML('beforeend', postHtml);
+
+            // 固定状態に応じて変数を振り分ける
+            if (isPinned) {
+                pinnedHtml += postHtml;
+            } else {
+                normalHtml += postHtml;
+            }
         });
+        
+        // 固定投稿を上に、通常投稿を下に合体して表示
+        timeline.innerHTML = pinnedHtml + normalHtml;
     });
 
-    // 削除機能（画像も一緒に削除）
+    // ★ 投稿の固定・解除を行う関数を追加
+    window.togglePin = async (id, currentPinned) => {
+        try {
+            if (!currentPinned) {
+                // 新しく固定する場合、既存の固定投稿を探して解除する
+                const pinQuery = query(postsRef, where("isPinned", "==", true));
+                const pinSnap = await getDocs(pinQuery);
+                for (const dSnap of pinSnap.docs) {
+                    if (dSnap.id !== id) {
+                        await updateDoc(doc(db, "posts", dSnap.id), { isPinned: false });
+                    }
+                }
+                // 対象の投稿を固定
+                await updateDoc(doc(db, "posts", id), { isPinned: true });
+            } else {
+                // 既に固定されている場合は解除のみ
+                await updateDoc(doc(db, "posts", id), { isPinned: false });
+            }
+        } catch (e) {
+            console.error("Pin error:", e);
+            alert("固定設定の変更に失敗しました。\n※ブラウザの開発者ツール(F12)のコンソールにエラーURLが出ている場合はクリックしてインデックスを作成してください。");
+        }
+    };
+
     window.deletePost = async (id) => {
         if(!confirm("この投稿を削除しますか？")) return;
-        
         try {
-            // ドキュメントを取得して画像情報を探す
-            // 丁寧に行うなら以下のようにします
-            // alert("削除中...");  <--- 削除しました
             await deleteDoc(doc(db, "posts", id));
             alert("削除しました");
-            // ※画像の即時削除は複雑になるため、下記の自動クリーンアップに任せます
         } catch(e) { 
             console.error(e);
             alert("削除できませんでした"); 
         }
     };
 
-    // ★お掃除機能（古い投稿と画像を自動削除）
     const cleanupOldPosts = async () => {
         const cleanupQuery = query(postsRef, where("createdAt", "<=", Timestamp.fromDate(oneWeekAgo)));
         const snapshot = await getDocs(cleanupQuery);
         
         snapshot.forEach(async (docSnap) => {
             const data = docSnap.data();
-            // 画像があればStorageから削除
             if (data.images && Array.isArray(data.images)) {
                 for (const img of data.images) {
                     if (img.path) {
@@ -480,15 +521,12 @@
                     }
                 }
             }
-            // ドキュメント削除
             await deleteDoc(doc(db, "posts", docSnap.id));
             console.log("古い投稿を削除しました:", docSnap.id);
         });
     };
-    // ページ読み込み時に一度だけ実行
     cleanupOldPosts();
 
-    // --- 編集モーダル関連 ---
     const editModal = document.getElementById("editModal");
     const editInput = document.getElementById("editInput");
     const cancelEditBtn = document.getElementById("cancelEditBtn");
